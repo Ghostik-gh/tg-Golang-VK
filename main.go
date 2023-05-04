@@ -16,19 +16,18 @@ type Config struct {
 	TelegramBotToken string
 }
 
-// NewOneTimeReplyKeyboard
-// var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-// 	tgbotapi.NewInlineKeyboardRow(
-// 		tgbotapi.NewInlineKeyboardButtonURL("1.com", "http://1.com"),
-// 		tgbotapi.NewInlineKeyboardButtonData("2", "2"),
-// 		tgbotapi.NewInlineKeyboardButtonData("3", "3"),
-// 	),
-// 	tgbotapi.NewInlineKeyboardRow(
-// 		tgbotapi.NewInlineKeyboardButtonData("4", "4"),
-// 		tgbotapi.NewInlineKeyboardButtonData("5", "5"),
-// 		tgbotapi.NewInlineKeyboardButtonData("6", "6"),
-// 	),
-// )
+var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonURL("1.com", "http://1.com"),
+		tgbotapi.NewInlineKeyboardButtonData("2", "2"),
+		tgbotapi.NewInlineKeyboardButtonData("3", "3"),
+	),
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("4", "4"),
+		tgbotapi.NewInlineKeyboardButtonData("5", "5"),
+		tgbotapi.NewInlineKeyboardButtonData("6", "6"),
+	),
+)
 
 func main() {
 	configuration := createConfig()
@@ -38,8 +37,6 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("serv: %v, %v\n", serv, pass)
-
-	os.Exit(1)
 
 	bot, err := tgbotapi.NewBotAPI(configuration.TelegramBotToken)
 	if err != nil {
@@ -56,55 +53,54 @@ func main() {
 
 	for update := range updates {
 
-		// if update.Message != nil {
-		// 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-		// 	switch update.Message.Text {
-		// 	case "open":
-		// 		del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID+1)
-		// 		msg.ReplyMarkup = numericKeyboard
-		// 		go DeleteNextMsg(bot, del)
-		// 	}
+		if update.Message != nil {
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
+			switch update.Message.Text {
+			case "open":
+				del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID+1)
+				msg.ReplyMarkup = numericKeyboard
+				go DeleteNextMsg(bot, del)
+			}
 
-		// 	if _, err = bot.Send(msg); err != nil {
-		// 		panic(err)
-		// 	}
-		// } else if update.CallbackQuery != nil {
-		// 	callback := tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data)
-		// 	if _, err := bot.Request(callback); err != nil {
-		// 		panic(err)
-		// 	}
+			if _, err = bot.Send(msg); err != nil {
+				panic(err)
+			}
+		} else if update.CallbackQuery != nil {
+			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data)
+			if _, err := bot.Request(callback); err != nil {
+				panic(err)
+			}
 
-		// 	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data)
-		// 	del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID+1)
-		// 	go DeleteNextMsg(bot, del)
-		// 	if _, err := bot.Send(msg); err != nil {
-		// 		panic(err)
-		// 	}
+			msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data)
+			// del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID+1)
+			// go DeleteNextMsg(bot, del)
+			if _, err := bot.Send(msg); err != nil {
+				panic(err)
+			}
+		}
+
+		// msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
+		// switch update.Message.Command() {
+		// case "start":
+		// 	msg.Text = "Добро пожаловать в моего ботика"
+		// case "set":
+		// 	pass := update.Message.From.String()
+		// 	ValidatePass(pass)
+		// 	msg.Text = "Сервис добавлен"
+		// case "del":
+		// 	msg.Text = "Сервис Удален"
+		// case "get":
+		// 	msg.Text = "Пароль 123456"
+		// default:
+		// 	msg.Text = "I don't know that command"
 		// }
 
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
+		// if _, err := bot.Send(msg); err != nil {
+		// 	panic(err)
+		// }
+		// del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID)
 
-		switch update.Message.Command() {
-		case "start":
-			msg.Text = "Добро пожаловать в моего ботика"
-		case "set":
-			pass := update.Message.From.String()
-			ValidatePass(pass)
-			msg.Text = "Сервис добавлен"
-		case "del":
-			msg.Text = "Сервис Удален"
-		case "get":
-			msg.Text = "Пароль 123456"
-		default:
-			msg.Text = "I don't know that command"
-		}
-
-		if _, err := bot.Send(msg); err != nil {
-			panic(err)
-		}
-		del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID)
-
-		go DeleteNextMsg(bot, del)
+		// go DeleteNextMsg(bot, del)
 
 	}
 }
@@ -123,11 +119,9 @@ func ValidatePass(s string) (service string, pass string, err error) {
 }
 
 func DeleteNextMsg(bot *tgbotapi.BotAPI, del tgbotapi.DeleteMessageConfig) {
-	err := errors.New("msg does't not exist")
-	for err != nil {
-		time.Sleep(10 * time.Second)
-		_, err = bot.Send(del)
-	}
+	// err := errors.New("msg does't not exist")
+	time.Sleep(10 * time.Second)
+	bot.Send(del)
 
 }
 
