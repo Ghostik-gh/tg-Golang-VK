@@ -18,41 +18,44 @@ type Config struct {
 	TelegramBotToken string
 }
 
-var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonURL("1.com", "http://1.com"),
-		tgbotapi.NewInlineKeyboardButtonData("2", "2"),
-		tgbotapi.NewInlineKeyboardButtonData("3", "3"),
-	),
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("4", "4"),
-		tgbotapi.NewInlineKeyboardButtonData("5", "5"),
-		tgbotapi.NewInlineKeyboardButtonData("6", "6"),
-	),
+var (
+	host     = os.Getenv("HOST")
+	port     = os.Getenv("PORT")
+	user     = os.Getenv("USER")
+	password = os.Getenv("PASSWORD")
+	dbname   = os.Getenv("DBNAME")
+	sslmode  = os.Getenv("SSLMODE")
 )
+
+var dbInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, user, password, dbname, sslmode)
+
+// var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+// 	tgbotapi.NewInlineKeyboardRow(
+// 		tgbotapi.NewInlineKeyboardButtonURL("1.com", "http://1.com"),
+// 		tgbotapi.NewInlineKeyboardButtonData("2", "2"),
+// 		tgbotapi.NewInlineKeyboardButtonData("3", "3"),
+// 	),
+// 	tgbotapi.NewInlineKeyboardRow(
+// 		tgbotapi.NewInlineKeyboardButtonData("4", "4"),
+// 		tgbotapi.NewInlineKeyboardButtonData("5", "5"),
+// 		tgbotapi.NewInlineKeyboardButtonData("6", "6"),
+// 	),
+// )
 
 func main() {
 	configuration := createConfig()
 	fmt.Println(configuration.TelegramBotToken)
-	time.Sleep(3 * time.Second)
-	fmt.Printf("os.Getenv(dbInfo): %v\n", os.Getenv(strings.Join(strings.Split(dbInfo, " "), "")))
+
+	time.Sleep(4 * time.Second)
 	if os.Getenv("CREATE_TABLE") == "yes" {
 
 		if os.Getenv("DB_SWITCH") == "on" {
 
 			if err := createTable(); err != nil {
-				panic(err)
+				fmt.Printf("err: %v\n", err)
 			}
 		}
 	}
-
-	time.Sleep(5 * time.Second)
-
-	collectData("Ghostik322", 1, "Hello, World", []string{"answer_1", "answer_2"})
-	time.Sleep(5 * time.Second)
-
-	fmt.Println(getNumberOfUsers())
-	fmt.Println(getAll())
 
 	bot, err := tgbotapi.NewBotAPI(configuration.TelegramBotToken)
 	if err != nil {
@@ -66,65 +69,60 @@ func main() {
 	u.Timeout = 60
 	updates := bot.GetUpdatesChan(u)
 	for update := range updates {
-
-		if update.Message.IsCommand() {
+		if update.Message == nil { // ignore non-Message updates
+			continue
+		}
+		if update.Message != nil {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
+			var err error
 			switch update.Message.Command() {
 			case "help":
 				msg.Text = "/set /get /del"
-			case "start":
-				msg.ReplyMarkup = numericKeyboard
-				// del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID+1)
-				// go DeleteNextMsg(bot, del)
+			// TODO: Inline и Keyboard
+			// case "start":
+			// 	msg.ReplyMarkup = numericKeyboard
 			case "get":
-				// getAll()
-				msg.Text, err = getAll()
+				fmt.Printf("update.Message.Text: %v\n", update.Message.Text)
+				service, err := ValidateGet(update.Message.Text)
 				if err != nil {
-					panic(err)
+					fmt.Printf("err.Error(): %v\n", err)
+					continue
+				}
+				pass, err := GetPassword(int(msg.ChatID), service, update.Message.From.UserName)
+				msg.Text = "Ваш пароль " + pass + `
+Через 10 секуд пароль будет удален`
+				del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID+1)
+				go DeleteNextMsg(bot, del)
+				if err != nil {
+					fmt.Printf("err.Error(): %v\n", err)
+					continue
 				}
 			case "del":
-
+				service, err := ValidateGet(update.Message.Text)
+				if err != nil {
+					fmt.Printf("err.Error(): %v\n", err)
+					continue
+				}
+				DelPassword(update.Message.From.UserName, msg.ChatID, service)
+				msg.Text = "Удалил сервис: " + service
 			case "set":
+				serv, pass, err := ValidatePass(update.Message.Text)
+				if err != nil {
+					continue
+				}
+				AddPassword(update.Message.From.UserName, msg.ChatID, serv, pass)
+				msg.Text = "Добавил пароль от " + serv
+				del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID)
+				go DeleteNextMsg(bot, del)
+			default:
+				msg.Text = "я не знаю такой команды"
 			}
-
 			if _, err = bot.Send(msg); err != nil {
-				panic(err)
-			}
-		} else if update.CallbackQuery != nil {
-			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data)
-			if _, err := bot.Request(callback); err != nil {
-				panic(err)
-			}
-
-			msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data)
-			// del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID+1)
-			// go DeleteNextMsg(bot, del)
-			if _, err := bot.Send(msg); err != nil {
-				panic(err)
+				log.Panic(err)
 			}
 		}
 
-		// msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-		// switch update.Message.Command() {
-		// case "start":
-		// 	msg.Text = "Добро пожаловать в моего ботика"
-		// case "set":
-		// 	pass := update.Message.From.String()
-		// 	ValidatePass(pass)
-		// 	msg.Text = "Сервис добавлен"
-		// case "del":
-		// 	msg.Text = "Сервис Удален"
-		// case "get":
-		// 	msg.Text = "Пароль 123456"
-		// default:
-		// 	msg.Text = "I don't know that command"
-		// }
-
-		// if _, err := bot.Send(msg); err != nil {
-		// 	panic(err)
-		// }
 		// del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID)
-
 		// go DeleteNextMsg(bot, del)
 
 	}
@@ -142,6 +140,16 @@ func ValidatePass(s string) (service string, pass string, err error) {
 	fmt.Printf("s: %v\n", s)
 	return
 }
+func ValidateGet(s string) (service string, err error) {
+	s = strings.TrimSpace(s)
+	tmp := strings.Split(s, " ")
+	if len(tmp) != 2 {
+		err = errors.New("wrong parametrs")
+		return
+	}
+	service = tmp[1]
+	return
+}
 
 func DeleteNextMsg(bot *tgbotapi.BotAPI, del tgbotapi.DeleteMessageConfig) {
 	// err := errors.New("msg does't not exist")
@@ -156,20 +164,10 @@ func createConfig() Config {
 	configuration := Config{}
 	err := decoder.Decode(&configuration)
 	if err != nil {
-		panic(err)
-		// log.Panic(err)
+		log.Panic(err)
 	}
 	return configuration
 }
-
-var host = os.Getenv("HOST")
-var port = os.Getenv("PORT")
-var user = os.Getenv("USER")
-var password = os.Getenv("PASSWORD")
-var dbname = os.Getenv("DBNAME")
-var sslmode = os.Getenv("SSLMODE")
-
-var dbInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, user, password, dbname, sslmode)
 
 func createTable() error {
 
@@ -181,7 +179,7 @@ func createTable() error {
 	defer db.Close()
 
 	//Создаем таблицу users
-	if _, err = db.Exec(`CREATE TABLE users(ID SERIAL PRIMARY KEY, TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP, USERNAME TEXT, CHAT_ID INT, MESSAGE TEXT, ANSWER TEXT);`); err != nil {
+	if _, err = db.Exec(`CREATE TABLE passwords(id SERIAL PRIMARY KEY, username TEXT, chat_id INT, service TEXT, password TEXT);`); err != nil {
 		return err
 	}
 
@@ -189,18 +187,14 @@ func createTable() error {
 }
 
 func getNumberOfUsers() (int64, error) {
-
-	var count int64
-
-	//Подключаемся к БД
 	db, err := sql.Open("postgres", dbInfo)
 	if err != nil {
 		return 0, err
 	}
 	defer db.Close()
-
-	//Отправляем запрос в БД для подсчета числа уникальных пользователей
-	row := db.QueryRow("SELECT COUNT(DISTINCT username) FROM users;")
+	var count int64
+	// Количество записей в таблице
+	row := db.QueryRow("SELECT COUNT(DISTINCT id) FROM passwords;")
 	err = row.Scan(&count)
 	if err != nil {
 		return 0, err
@@ -209,25 +203,24 @@ func getNumberOfUsers() (int64, error) {
 	return count, nil
 }
 
-func getAll() (string, error) {
+func GetPassword(chat_id int, service, username string) (string, error) {
 
 	db, err := sql.Open("postgres", dbInfo)
 	if err != nil {
-		return "-1", err
+		return "Can't Connect", err
 	}
 	defer db.Close()
-	var name, answer string
-	row := db.QueryRow("SELECT USERNAME, answer FROM users;")
-	err = row.Scan(&name, &answer)
+	var service_name, pass string
+	row := db.QueryRow(`SELECT service, password FROM passwords WHERE service = $1;`, service) // WHERE chat_id = $1 AND service = $2 AND username = $3;`, chat_id, service, username)
+	err = row.Scan(&service_name, &pass)
 	if err != nil {
-		return "-1", err
+		return "Not Found", err
 	}
-
-	return name + ": " + answer, nil
+	return service_name + ": " + pass, nil
 }
 
 // Собираем данные полученные ботом
-func collectData(username string, chatid int64, message string, answer []string) error {
+func AddPassword(username string, chatid int64, service string, password string) error {
 
 	//Подключаемся к БД
 	db, err := sql.Open("postgres", dbInfo)
@@ -237,15 +230,31 @@ func collectData(username string, chatid int64, message string, answer []string)
 	defer db.Close()
 
 	//Конвертируем срез с ответом в строку
-	answ := strings.Join(answer, ", ")
+	// answ := strings.Join(answer, ", ")
 
 	//Создаем SQL запрос
-	data := `INSERT INTO users(username, chat_id, message, answer) VALUES($1, $2, $3, $4);`
+	data := `INSERT INTO passwords(username, chat_id, service, password) VALUES($1, $2, $3, $4);`
 
 	//Выполняем наш SQL запрос
-	if _, err = db.Exec(data, `@`+username, chatid, message, answ); err != nil {
+	if _, err = db.Exec(data, `@`+username, chatid, service, password); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func DelPassword(username string, chatid int64, service string) error {
+	//Подключаемся к БД
+	db, err := sql.Open("postgres", dbInfo)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	data := `DELETE FROM passwords WHERE service = $1;`
+	//Выполняем наш SQL запрос
+	if _, err = db.Exec(data, service); err != nil {
+		return err
+	}
 	return nil
 }
