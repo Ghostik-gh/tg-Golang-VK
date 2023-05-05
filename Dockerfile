@@ -4,11 +4,11 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 RUN go mod download
-COPY main.go config.json ./
+COPY *.go config.json ./
 
 EXPOSE 80/tcp
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /tg-bot-golang
+RUN CGO_ENABLED=0 GOOS=linux go build -o /tg-bot-golang .
 
 CMD ["/tg-bot-golang"]
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,35 +17,16 @@ type Config struct {
 	TelegramBotToken string
 }
 
-var (
-	host     = os.Getenv("HOST")
-	port     = os.Getenv("PORT")
-	user     = os.Getenv("USER")
-	password = os.Getenv("PASSWORD")
-	dbname   = os.Getenv("DBNAME")
-	sslmode  = os.Getenv("SSLMODE")
-)
-
-var dbInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, user, password, dbname, sslmode)
-
-// var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-// 	tgbotapi.NewInlineKeyboardRow(
-// 		tgbotapi.NewInlineKeyboardButtonURL("1.com", "http://1.com"),
-// 		tgbotapi.NewInlineKeyboardButtonData("2", "2"),
-// 		tgbotapi.NewInlineKeyboardButtonData("3", "3"),
-// 	),
-// 	tgbotapi.NewInlineKeyboardRow(
-// 		tgbotapi.NewInlineKeyboardButtonData("4", "4"),
-// 		tgbotapi.NewInlineKeyboardButtonData("5", "5"),
-// 		tgbotapi.NewInlineKeyboardButtonData("6", "6"),
-// 	),
-// )
+type RowServ struct {
+	service  string
+	password string
+}
 
 func main() {
-	configuration := createConfig()
+	configuration := mustConfig()
 	fmt.Println(configuration.TelegramBotToken)
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(5 * time.Second)
 	if os.Getenv("CREATE_TABLE") == "yes" {
 
 		if os.Getenv("DB_SWITCH") == "on" {
@@ -69,18 +49,14 @@ func main() {
 	u.Timeout = 60
 	updates := bot.GetUpdatesChan(u)
 	for update := range updates {
-		if update.Message == nil { // ignore non-Message updates
-			continue
-		}
 		if update.Message != nil {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-			var err error
 			switch update.Message.Command() {
 			case "help":
-				msg.Text = "/set /get /del"
-			// TODO: Inline и Keyboard
-			// case "start":
-			// 	msg.ReplyMarkup = numericKeyboard
+				msg.Text = "/set /get /del /start"
+			case "start":
+				msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
+				msg.Text = "Для того чтобы увидеть пароль кликните на сервис"
 			case "get":
 				fmt.Printf("update.Message.Text: %v\n", update.Message.Text)
 				service, err := ValidateGet(update.Message.Text)
@@ -88,9 +64,8 @@ func main() {
 					fmt.Printf("err.Error(): %v\n", err)
 					continue
 				}
-				pass, err := GetPassword(int(msg.ChatID), service, update.Message.From.UserName)
-				msg.Text = "Ваш пароль " + pass + `
-Через 10 секуд пароль будет удален`
+				pass, err := Password(int(msg.ChatID), service, update.Message.From.UserName)
+				msg.Text = "Ваш пароль " + pass + "\nЧepeз 10 секуд пароль будет удален"
 				del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID+1)
 				go DeleteNextMsg(bot, del)
 				if err != nil {
@@ -103,22 +78,39 @@ func main() {
 					fmt.Printf("err.Error(): %v\n", err)
 					continue
 				}
-				DelPassword(update.Message.From.UserName, msg.ChatID, service)
-				msg.Text = "Удалил сервис: " + service
+				err = DelPassword(update.Message.From.UserName, msg.ChatID, service)
+				if err == nil {
+					msg.Text = "Удалил сервис: " + service
+				}
 			case "set":
 				serv, pass, err := ValidatePass(update.Message.Text)
 				if err != nil {
 					continue
 				}
-				AddPassword(update.Message.From.UserName, msg.ChatID, serv, pass)
-				msg.Text = "Добавил пароль от " + serv
+				err = AddPassword(update.Message.From.UserName, msg.ChatID, serv, pass)
+				if err == nil {
+					msg.Text = "Добавил пароль от " + serv
+				}
 				del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID)
 				go DeleteNextMsg(bot, del)
 			default:
-				msg.Text = "я не знаю такой команды"
+				msg.Text = "Я не знаю такой команды"
 			}
-			if _, err = bot.Send(msg); err != nil {
-				log.Panic(err)
+			if _, err := bot.Send(msg); err != nil {
+				fmt.Printf("err: %v\n", err)
+			}
+		} else if update.CallbackQuery != nil {
+			// Respond to the callback query, telling Telegram to show the user
+			// a message with the data received.
+			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data)
+			if _, err := bot.Request(callback); err != nil {
+				panic(err)
+			}
+
+			// And finally, send a message containing the data received.
+			msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data)
+			if _, err := bot.Send(msg); err != nil {
+				panic(err)
 			}
 		}
 
@@ -126,6 +118,28 @@ func main() {
 		// go DeleteNextMsg(bot, del)
 
 	}
+}
+
+func Inline(chatID int64, username string) tgbotapi.InlineKeyboardMarkup {
+
+	data, err := UserData(int(chatID), username)
+	if len(data) == 0 {
+		rows := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Для добавления сервиса используйте set", "Use SET ARG1 ARG2"))
+		var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(rows)
+		return numericKeyboard
+	}
+
+	if err != nil {
+		fmt.Printf("err: %v\n", err)
+	}
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, v := range data {
+		row := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(v.service, v.password))
+		rows = append(rows, row)
+	}
+	var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(rows...)
+
+	return numericKeyboard
 }
 
 func ValidatePass(s string) (service string, pass string, err error) {
@@ -158,103 +172,13 @@ func DeleteNextMsg(bot *tgbotapi.BotAPI, del tgbotapi.DeleteMessageConfig) {
 
 }
 
-func createConfig() Config {
+func mustConfig() Config {
 	file, _ := os.Open("config.json")
 	decoder := json.NewDecoder(file)
 	configuration := Config{}
 	err := decoder.Decode(&configuration)
 	if err != nil {
-		log.Panic(err)
+		log.Fatal("Can't configurate: create config.json with yours telegram token")
 	}
 	return configuration
-}
-
-func createTable() error {
-
-	//Подключаемся к БД
-	db, err := sql.Open("postgres", dbInfo)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	//Создаем таблицу users
-	if _, err = db.Exec(`CREATE TABLE passwords(id SERIAL PRIMARY KEY, username TEXT, chat_id INT, service TEXT, password TEXT);`); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func getNumberOfUsers() (int64, error) {
-	db, err := sql.Open("postgres", dbInfo)
-	if err != nil {
-		return 0, err
-	}
-	defer db.Close()
-	var count int64
-	// Количество записей в таблице
-	row := db.QueryRow("SELECT COUNT(DISTINCT id) FROM passwords;")
-	err = row.Scan(&count)
-	if err != nil {
-		return 0, err
-	}
-
-	return count, nil
-}
-
-func GetPassword(chat_id int, service, username string) (string, error) {
-
-	db, err := sql.Open("postgres", dbInfo)
-	if err != nil {
-		return "Can't Connect", err
-	}
-	defer db.Close()
-	var service_name, pass string
-	row := db.QueryRow(`SELECT service, password FROM passwords WHERE service = $1;`, service) // WHERE chat_id = $1 AND service = $2 AND username = $3;`, chat_id, service, username)
-	err = row.Scan(&service_name, &pass)
-	if err != nil {
-		return "Not Found", err
-	}
-	return service_name + ": " + pass, nil
-}
-
-// Собираем данные полученные ботом
-func AddPassword(username string, chatid int64, service string, password string) error {
-
-	//Подключаемся к БД
-	db, err := sql.Open("postgres", dbInfo)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	//Конвертируем срез с ответом в строку
-	// answ := strings.Join(answer, ", ")
-
-	//Создаем SQL запрос
-	data := `INSERT INTO passwords(username, chat_id, service, password) VALUES($1, $2, $3, $4);`
-
-	//Выполняем наш SQL запрос
-	if _, err = db.Exec(data, `@`+username, chatid, service, password); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func DelPassword(username string, chatid int64, service string) error {
-	//Подключаемся к БД
-	db, err := sql.Open("postgres", dbInfo)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	data := `DELETE FROM passwords WHERE service = $1;`
-	//Выполняем наш SQL запрос
-	if _, err = db.Exec(data, service); err != nil {
-		return err
-	}
-	return nil
 }
