@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	_ "github.com/lib/pq"
 )
 
 type Config struct {
@@ -32,11 +34,25 @@ var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 func main() {
 	configuration := createConfig()
 	fmt.Println(configuration.TelegramBotToken)
-	serv, pass, err := ValidatePass("set Linux 123456")
-	if err != nil {
-		panic(err)
+	time.Sleep(3 * time.Second)
+	fmt.Printf("os.Getenv(dbInfo): %v\n", os.Getenv(strings.Join(strings.Split(dbInfo, " "), "")))
+	if os.Getenv("CREATE_TABLE") == "yes" {
+
+		if os.Getenv("DB_SWITCH") == "on" {
+
+			if err := createTable(); err != nil {
+				panic(err)
+			}
+		}
 	}
-	fmt.Printf("serv: %v, %v\n", serv, pass)
+
+	time.Sleep(5 * time.Second)
+
+	collectData("Ghostik322", 1, "Hello, World", []string{"answer_1", "answer_2"})
+	time.Sleep(5 * time.Second)
+
+	fmt.Println(getNumberOfUsers())
+	fmt.Println(getAll())
 
 	bot, err := tgbotapi.NewBotAPI(configuration.TelegramBotToken)
 	if err != nil {
@@ -48,18 +64,27 @@ func main() {
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
-
 	updates := bot.GetUpdatesChan(u)
-
 	for update := range updates {
 
-		if update.Message != nil {
+		if update.Message.IsCommand() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-			switch update.Message.Text {
-			case "open":
-				del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID+1)
+			switch update.Message.Command() {
+			case "help":
+				msg.Text = "/set /get /del"
+			case "start":
 				msg.ReplyMarkup = numericKeyboard
-				go DeleteNextMsg(bot, del)
+				// del := tgbotapi.NewDeleteMessage(msg.ChatID, update.Message.MessageID+1)
+				// go DeleteNextMsg(bot, del)
+			case "get":
+				// getAll()
+				msg.Text, err = getAll()
+				if err != nil {
+					panic(err)
+				}
+			case "del":
+
+			case "set":
 			}
 
 			if _, err = bot.Send(msg); err != nil {
@@ -135,4 +160,92 @@ func createConfig() Config {
 		// log.Panic(err)
 	}
 	return configuration
+}
+
+var host = os.Getenv("HOST")
+var port = os.Getenv("PORT")
+var user = os.Getenv("USER")
+var password = os.Getenv("PASSWORD")
+var dbname = os.Getenv("DBNAME")
+var sslmode = os.Getenv("SSLMODE")
+
+var dbInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, user, password, dbname, sslmode)
+
+func createTable() error {
+
+	//Подключаемся к БД
+	db, err := sql.Open("postgres", dbInfo)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	//Создаем таблицу users
+	if _, err = db.Exec(`CREATE TABLE users(ID SERIAL PRIMARY KEY, TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP, USERNAME TEXT, CHAT_ID INT, MESSAGE TEXT, ANSWER TEXT);`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getNumberOfUsers() (int64, error) {
+
+	var count int64
+
+	//Подключаемся к БД
+	db, err := sql.Open("postgres", dbInfo)
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+
+	//Отправляем запрос в БД для подсчета числа уникальных пользователей
+	row := db.QueryRow("SELECT COUNT(DISTINCT username) FROM users;")
+	err = row.Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func getAll() (string, error) {
+
+	db, err := sql.Open("postgres", dbInfo)
+	if err != nil {
+		return "-1", err
+	}
+	defer db.Close()
+	var name, answer string
+	row := db.QueryRow("SELECT USERNAME, answer FROM users;")
+	err = row.Scan(&name, &answer)
+	if err != nil {
+		return "-1", err
+	}
+
+	return name + ": " + answer, nil
+}
+
+// Собираем данные полученные ботом
+func collectData(username string, chatid int64, message string, answer []string) error {
+
+	//Подключаемся к БД
+	db, err := sql.Open("postgres", dbInfo)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	//Конвертируем срез с ответом в строку
+	answ := strings.Join(answer, ", ")
+
+	//Создаем SQL запрос
+	data := `INSERT INTO users(username, chat_id, message, answer) VALUES($1, $2, $3, $4);`
+
+	//Выполняем наш SQL запрос
+	if _, err = db.Exec(data, `@`+username, chatid, message, answ); err != nil {
+		return err
+	}
+
+	return nil
 }
