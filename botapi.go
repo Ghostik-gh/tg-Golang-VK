@@ -13,6 +13,7 @@ const (
 /set - Используется для установления пароля
 /get - Выводит список всех сервисов
 /del - Удаляет серевис из хранилища
+/author - Если у вас есть вопросы или предложения по работе бота пишите мне
 Бот обрабаывает только команды и пару слов после set, все остальное делается через кнопки под сообщениями`
 )
 
@@ -40,11 +41,14 @@ func StartBot(config Config) {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 			serv, err := ValidateGet(update.Message.Text)
 			if err != nil {
+				msg.Text = "Не удалось удалить сервис: проверьте правильность написания сервиса используйте /get для просмотра"
+				if _, err := bot.Send(msg); err != nil {
+					Infolog.Printf("err: %v\n", err)
+				}
 				continue
 			}
-			err = DelPassword(update.Message.From.UserName, msg.ChatID, serv)
-			if err == nil {
-				msg.Text = "Удалил сервис: " + serv
+			if err := DelPassword(update.Message.From.UserName, msg.ChatID, serv); err == nil {
+				msg.Text = "Удалил сервис: " + serv + "\nЕсли пароль не удалился проверьте написание сервиса через /get"
 			}
 			msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
 			if _, err := bot.Send(msg); err != nil {
@@ -60,14 +64,17 @@ func StartBot(config Config) {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 			serv, pass, err := ValidatePass(update.Message.Text)
 			if err != nil {
+				msg.Text = "Не удалось добавить пароль, данные надо писать в одном сообщении через пробел"
+				if _, err := bot.Send(msg); err != nil {
+					Infolog.Printf("err: %v\n", err)
+				}
 				continue
 			}
-			err = AddPassword(update.Message.From.UserName, msg.ChatID, serv, pass)
-			if err == nil {
+			if err := AddPassword(update.Message.From.UserName, msg.ChatID, serv, pass); err == nil {
 				msg.Text = "Добавил пароль от " + serv
 			}
 			go DeleteMsg(bot, msg.ChatID, update.Message.MessageID)
-			msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
+			// msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
 			if _, err := bot.Send(msg); err != nil {
 				Infolog.Printf("err: %v\n", err)
 			}
@@ -98,8 +105,10 @@ func StartBot(config Config) {
 			case "set":
 				set = true
 				msg.Text = "Напишите сервис и пароль к нему через пробел"
+			case "author":
+				msg.Text = "https://t.me/GhostikGH"
 			default:
-				msg.Text = "Я не знаю такой команды"
+				msg.Text = "Я не знаю такой команды\n" + helpText
 			}
 			// Отправляем сообщение
 			if _, err := bot.Send(msg); err != nil {
