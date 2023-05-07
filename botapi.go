@@ -34,7 +34,6 @@ func StartBot(config Config) {
 	get := false
 	count := 0
 	lastMsg := 0
-	// inlineID := 0
 	for update := range updates {
 		// Обработка получения пароля не через аргументы
 		if del && update.Message != nil {
@@ -67,7 +66,7 @@ func StartBot(config Config) {
 			if err == nil {
 				msg.Text = "Добавил пароль от " + serv
 			}
-			go DeleteNextMsg(bot, msg.ChatID, update.Message.MessageID)
+			go DeleteMsg(bot, msg.ChatID, update.Message.MessageID)
 			if _, err := bot.Send(msg); err != nil {
 				fmt.Printf("err: %v\n", err)
 			}
@@ -76,16 +75,6 @@ func StartBot(config Config) {
 		}
 
 		if update.Message != nil {
-			// if get {
-			// 	get = false
-			// 	msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-			// 	edit := tgbotapi.NewEditMessageReplyMarkup(msg.ChatID, inlineID,
-			// 		tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Unavailable", "/get"))))
-			// 	if _, err := bot.Send(edit); err != nil {
-			// 		fmt.Printf("err: %v\n", err)
-			// 	}
-			// }
-			// lastMsg = Max(update.Message.MessageID, lastMsg)
 			if update.Message.MessageID >= lastMsg {
 				lastMsg = update.Message.MessageID
 				count = 1
@@ -116,7 +105,6 @@ func StartBot(config Config) {
 			}
 		} else if update.CallbackQuery != nil {
 			lastMsg = Max(update.CallbackQuery.Message.MessageID, lastMsg)
-			fmt.Printf("lastMsg: %v\n", lastMsg)
 			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "Пароль удаляется через 10 секунд")
 			if _, err := bot.Request(callback); err != nil {
 				panic(err)
@@ -128,15 +116,14 @@ func StartBot(config Config) {
 			}
 			count++
 			if get {
-				go DeleteNextMsg(bot, msg.ChatID, lastMsg+count)
+				go DeleteMsg(bot, msg.ChatID, lastMsg+count)
 			}
 		}
-		fmt.Printf("LAST count: %v\n", count)
 	}
 }
 
+// Создает Инлайн клавиатуру под сообщением
 func Inline(chatID int64, username string) tgbotapi.InlineKeyboardMarkup {
-
 	data, err := UserData(int(chatID), username)
 	if len(data) == 0 {
 		rows := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Для добавления сервиса используйте set", "Use /set"))
@@ -148,8 +135,23 @@ func Inline(chatID int64, username string) tgbotapi.InlineKeyboardMarkup {
 		fmt.Printf("err: %v\n", err)
 	}
 	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, v := range data {
-		row := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(v.service, v.password))
+	curLen := len(data)
+	for i := 0; i < curLen; {
+		row := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(data[i].service, data[i].password))
+		if curLen-i == 1 {
+			row = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(data[i].service, data[i].password))
+			i += 1
+		} else if curLen-i == 2 {
+			row = tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(data[i].service, data[i].password),
+				tgbotapi.NewInlineKeyboardButtonData(data[i+1].service, data[i+1].password))
+			i += 2
+		} else if curLen >= 3 {
+			row = tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(data[i].service, data[i].password),
+				tgbotapi.NewInlineKeyboardButtonData(data[i+1].service, data[i+1].password),
+				tgbotapi.NewInlineKeyboardButtonData(data[i+2].service, data[i+2].password))
+			i += 3
+		}
 		rows = append(rows, row)
 	}
 	var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(rows...)
@@ -164,11 +166,11 @@ func Max(x, y int) int {
 	return y
 }
 
-func DeleteNextMsg(bot *tgbotapi.BotAPI, chatID int64, MessageID int) {
+// Удаляет переданное сообщение через 5 секунд
+func DeleteMsg(bot *tgbotapi.BotAPI, chatID int64, MessageID int) {
 	del := tgbotapi.NewDeleteMessage(chatID, MessageID)
 	err := errors.New("msg does't not exist")
 	fmt.Printf("err: %v\n", err)
-	time.Sleep(2 * time.Second)
+	time.Sleep(5 * time.Second)
 	bot.Send(del)
-
 }
