@@ -50,24 +50,6 @@ func createTable() error {
 	return nil
 }
 
-// Получает первый пароль от переданного сервиса
-func Password(chat_id int, service, username string) (string, error) {
-	db := connectDB()
-	defer db.Close()
-
-	var service_name, pass string
-	fmt.Printf("service: %v\n", service)
-	fmt.Printf("chat_id: %v\n", chat_id)
-	fmt.Printf("username: %v\n", username)
-	row := db.QueryRow(`SELECT service, password FROM passwords WHERE service = $1 AND chat_id = $2 AND username = $3;`, service, chat_id, username)
-	err := row.Scan(&service_name, &pass)
-	if err != nil {
-		fmt.Printf("%v\n", "Passsword")
-		return "Not Found", err
-	}
-	return service_name + ": " + pass, nil
-}
-
 // Добавляет одну запись
 func AddPassword(username string, chatid int64, service string, password string) error {
 	db := connectDB()

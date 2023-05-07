@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -116,4 +118,35 @@ func StartBot(config Config) {
 		}
 
 	}
+}
+
+func Inline(chatID int64, username string) tgbotapi.InlineKeyboardMarkup {
+
+	data, err := UserData(int(chatID), username)
+	if len(data) == 0 {
+		rows := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Для добавления сервиса используйте set", "Use /set"))
+		var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(rows)
+		return numericKeyboard
+	}
+
+	if err != nil {
+		fmt.Printf("err: %v\n", err)
+	}
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, v := range data {
+		row := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(v.service, tgbotapi.EscapeText("MarkdownV2", "`"+v.password+"`")))
+		rows = append(rows, row)
+	}
+	var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(rows...)
+
+	return numericKeyboard
+}
+
+func DeleteNextMsg(bot *tgbotapi.BotAPI, chatID int64, MessageID int) {
+	del := tgbotapi.NewDeleteMessage(chatID, MessageID)
+	err := errors.New("msg does't not exist")
+	fmt.Printf("err: %v\n", err)
+	time.Sleep(10 * time.Second)
+	bot.Send(del)
+
 }
