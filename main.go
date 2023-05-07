@@ -76,13 +76,17 @@ func main() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 			switch update.Message.Command() {
 			case "help":
-				msg.Text = "/set /get /del /start"
+				msg.Text = `Справочник по командам
+/set - Используется для установления пароля
+/get - Выводит список всех сервисов
+/del - Удаляет серевер из хранилища
+Бот обрабаывает только команды и пару слов после set, все остальное делается через кнопки под сообщениями`
 			case "start":
 				msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
-				msg.Text = "Для того чтобы увидеть пароль кликните на сервис"
+				msg.Text = "Для того чтобы увидеть пароль кликните на сервис\nПароль удалится через 10 секунд"
 			case "get":
 				msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
-				msg.Text = "Для того чтобы увидеть пароль кликните на сервис"
+				msg.Text = "Для того чтобы увидеть пароль кликните на сервис\nПароль удалится через 10 секунд"
 			case "del":
 				service, err := ValidateGet(update.Message.Text)
 				if err != nil {
@@ -103,7 +107,7 @@ func main() {
 				fmt.Printf("err: %v\n", err)
 			}
 		} else if update.CallbackQuery != nil {
-			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data)
+			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "Пароль удаляется через 10 секунд")
 			if _, err := bot.Request(callback); err != nil {
 				panic(err)
 			}
@@ -115,11 +119,11 @@ func main() {
 			}
 			del := tgbotapi.NewDeleteMessage(msg.ChatID, update.CallbackQuery.Message.MessageID+1)
 			go DeleteNextMsg(bot, del)
-			edit := tgbotapi.NewEditMessageReplyMarkup(msg.ChatID, update.CallbackQuery.Message.MessageID, tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("1", "1"))))
+			edit := tgbotapi.NewEditMessageReplyMarkup(msg.ChatID, update.CallbackQuery.Message.MessageID,
+				tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("/get", "/get"))))
 			// Попробовать не паниковать)
-			//
 			if _, err := bot.Send(edit); err != nil {
-				panic(err)
+				fmt.Printf("err: %v\n", err)
 			}
 			// tgbotapi.ReplyKeyboardRemove()
 
@@ -142,7 +146,7 @@ func Inline(chatID int64, username string) tgbotapi.InlineKeyboardMarkup {
 	}
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, v := range data {
-		row := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(v.service, "`"+v.password+"`"))
+		row := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(v.service, "<code>"+v.password+"</code>"))
 		rows = append(rows, row)
 	}
 	var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(rows...)
