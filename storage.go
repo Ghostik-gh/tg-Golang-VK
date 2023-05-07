@@ -19,13 +19,12 @@ var (
 var dbInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, user, password, dbname, sslmode)
 
 func StartDB() {
+	// Задержка пока разворачивается Postgres
 	time.Sleep(5 * time.Second)
 	if os.Getenv("CREATE_TABLE") == "yes" {
-
 		if os.Getenv("DB_SWITCH") == "on" {
-
 			if err := createTable(); err != nil {
-				fmt.Printf("err: %v\n", err)
+				Infolog.Printf("err: %v\n", err)
 			}
 		}
 	}
@@ -34,7 +33,7 @@ func StartDB() {
 func connectDB() (db *sql.DB) {
 	db, err := sql.Open("postgres", dbInfo)
 	if err != nil {
-		fmt.Printf("DATABASE ERROR: %v\n", err)
+		Infolog.Printf("DATABASE ERROR: %v\n", err)
 	}
 	return
 }
@@ -44,7 +43,7 @@ func createTable() error {
 	db := connectDB()
 	defer db.Close()
 	if _, err := db.Exec(`CREATE TABLE passwords(id SERIAL PRIMARY KEY, username TEXT, chat_id INT, service TEXT, password TEXT);`); err != nil {
-		fmt.Printf("%v\n", "create Table")
+		Infolog.Printf("createTable: %v\n", err)
 		return err
 	}
 	return nil
@@ -56,7 +55,7 @@ func AddPassword(username string, chatid int64, service string, password string)
 	defer db.Close()
 	data := `INSERT INTO passwords(username, chat_id, service, password) VALUES($1, $2, $3, $4);`
 	if _, err := db.Exec(data, username, chatid, service, Encrypt(password)); err != nil {
-		fmt.Printf("Encrypt(password): %v\n", Encrypt(password))
+		Infolog.Printf("AddPassword: %v\n", err)
 		return err
 	}
 	return nil
@@ -68,7 +67,7 @@ func DelPassword(username string, chatid int64, service string) error {
 	defer db.Close()
 	data := `DELETE FROM passwords WHERE service = $1;`
 	if _, err := db.Exec(data, service); err != nil {
-		fmt.Printf("%v\n", "DELPasssword")
+		Infolog.Printf("DelPassword: %v\n", err)
 		return err
 	}
 	return nil
@@ -82,7 +81,7 @@ func UserData(chat_id int, username string) ([]RowServ, error) {
 	var data []RowServ
 	rows, err := db.Query(`SELECT service, password FROM passwords WHERE chat_id = $1 AND username = $2;`, chat_id, username)
 	if err != nil {
-		fmt.Printf("%v\n", "USERDATA")
+		Infolog.Printf("UserData: %v\n", err)
 		return data, err
 	}
 	defer rows.Close()

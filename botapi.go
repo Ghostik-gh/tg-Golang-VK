@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
@@ -25,7 +24,7 @@ func StartBot(config Config) {
 	}
 	bot.Debug = true
 
-	log.Printf("Authorized on account %s", bot.Self.UserName)
+	Infolog.Printf("Authorized on account %s", bot.Self.UserName)
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := bot.GetUpdatesChan(u)
@@ -47,8 +46,9 @@ func StartBot(config Config) {
 			if err == nil {
 				msg.Text = "Удалил сервис: " + serv
 			}
+			msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
 			if _, err := bot.Send(msg); err != nil {
-				fmt.Printf("err: %v\n", err)
+				Infolog.Printf("err: %v\n", err)
 			}
 			count = 3
 			continue
@@ -67,8 +67,9 @@ func StartBot(config Config) {
 				msg.Text = "Добавил пароль от " + serv
 			}
 			go DeleteMsg(bot, msg.ChatID, update.Message.MessageID)
+			msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
 			if _, err := bot.Send(msg); err != nil {
-				fmt.Printf("err: %v\n", err)
+				Infolog.Printf("err: %v\n", err)
 			}
 			count = 3
 			continue
@@ -101,7 +102,7 @@ func StartBot(config Config) {
 			}
 			// Отправляем сообщение
 			if _, err := bot.Send(msg); err != nil {
-				fmt.Printf("err: %v\n", err)
+				Infolog.Printf("err: %v\n", err)
 			}
 		} else if update.CallbackQuery != nil {
 			lastMsg = Max(update.CallbackQuery.Message.MessageID, lastMsg)
@@ -132,7 +133,7 @@ func Inline(chatID int64, username string) tgbotapi.InlineKeyboardMarkup {
 	}
 
 	if err != nil {
-		fmt.Printf("err: %v\n", err)
+		Infolog.Printf("err: %v\n", err)
 	}
 	var rows [][]tgbotapi.InlineKeyboardButton
 	curLen := len(data)
@@ -170,7 +171,7 @@ func Max(x, y int) int {
 func DeleteMsg(bot *tgbotapi.BotAPI, chatID int64, MessageID int) {
 	del := tgbotapi.NewDeleteMessage(chatID, MessageID)
 	err := errors.New("msg does't not exist")
-	fmt.Printf("err: %v\n", err)
+	Infolog.Printf("err: %v\n", err)
 	time.Sleep(5 * time.Second)
 	bot.Send(del)
 }

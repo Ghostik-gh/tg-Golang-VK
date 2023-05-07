@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -21,7 +20,6 @@ func ValidatePass(s string) (service string, pass string, err error) {
 			return
 		}
 	}
-	fmt.Printf("VALIDATE PASS: %v\n", s)
 	return
 }
 

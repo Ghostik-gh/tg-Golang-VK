@@ -2,21 +2,18 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 
 	_ "github.com/lib/pq"
 )
 
+var Infolog = log.New(os.Stdout, "INFO ", log.Ldate|log.Ltime)
+
 func main() {
-
 	configuration := mustConfig()
-	fmt.Println(configuration.TelegramBotToken)
-
 	StartDB()
 	StartBot(configuration)
-
 }
 
 func mustConfig() Config {
