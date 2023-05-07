@@ -35,7 +35,7 @@ DockerHub: https://hub.docker.com/r/ghostikgh/golang-bot - образ бота �
 
 ## /set
 
-![example /get](ex2.png)
+![example /set](ex2.png)
 
 ## /get
 
@@ -43,8 +43,12 @@ DockerHub: https://hub.docker.com/r/ghostikgh/golang-bot - образ бота �
 
 ## /del
 
-![example /get](ex3.png)
+![example /del](ex3.png)
 
 ## /help
 
-![example /get](ex4.png)
+![example /help](ex4.png)
+
+## Mobile
+
+![example Mobile](ex5.png)
