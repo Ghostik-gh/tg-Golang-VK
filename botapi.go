@@ -74,7 +74,7 @@ func StartBot(config Config) {
 				msg.Text = "Добавил пароль от " + serv
 			}
 			go DeleteMsg(bot, msg.ChatID, update.Message.MessageID)
-			msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
+			// msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
 			if _, err := bot.Send(msg); err != nil {
 				Infolog.Printf("err: %v\n", err)
 			}
@@ -98,7 +98,7 @@ func StartBot(config Config) {
 				count = 0
 				get = true
 				msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
-				msg.Text = "Для того чтобы увидеть пароль кликните на сервис\nПароль удалится через 10 секунд"
+				msg.Text = "Для того чтобы увидеть пароль кликните на сервис\nПароль удалится через 5 секунд"
 			case "del":
 				del = true
 				msg.Text = "Введите название сервиса"
@@ -117,7 +117,7 @@ func StartBot(config Config) {
 		} else if update.CallbackQuery != nil {
 			// Обрабатываем нажатия на кнопки под сообщениями
 			lastMsg = Max(update.CallbackQuery.Message.MessageID, lastMsg)
-			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "Пароль удаляется через 10 секунд")
+			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "Пароль удаляется через 5 секунд")
 			if _, err := bot.Request(callback); err != nil {
 				panic(err)
 			}
