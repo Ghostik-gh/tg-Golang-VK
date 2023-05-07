@@ -16,6 +16,7 @@ func main() {
 	StartBot(configuration)
 }
 
+// Считывает конфиг в котором находится токен для бота
 func mustConfig() Config {
 	file, _ := os.Open("config.json")
 	decoder := json.NewDecoder(file)

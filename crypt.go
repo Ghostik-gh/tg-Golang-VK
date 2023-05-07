@@ -2,6 +2,7 @@ package main
 
 const offset = 1198
 
+// Кодирует пароли для дальнейшего хранения в бд
 func Encrypt(s string) string {
 	src := []byte(s)
 	dst := []byte("")
@@ -11,6 +12,7 @@ func Encrypt(s string) string {
 	return string(dst[:])
 }
 
+// Однозначнно декодирует пароль для того чтобы вывести его пользователю
 func Decrypt(s string) string {
 	src := []byte(s)
 	dst := []byte("")

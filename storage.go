@@ -18,6 +18,7 @@ var (
 
 var dbInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, user, password, dbname, sslmode)
 
+// Стартует работу базы данных
 func StartDB() {
 	// Задержка пока разворачивается Postgres
 	time.Sleep(5 * time.Second)
@@ -30,6 +31,8 @@ func StartDB() {
 	}
 }
 
+// Подключается к БД
+// Желательно в каждой функции закрывать соединение через close()
 func connectDB() (db *sql.DB) {
 	db, err := sql.Open("postgres", dbInfo)
 	if err != nil {

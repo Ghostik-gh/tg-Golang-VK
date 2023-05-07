@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+// Проверяет передвнную пару сервис пароль
+// Пароль должен содеражть аски символы от 33 до 122
+// Количество аргуметов строго равно 2
 func ValidatePass(s string) (service string, pass string, err error) {
 	s = strings.TrimSpace(s)
 	tmp := strings.Split(s, " ")
@@ -23,6 +26,7 @@ func ValidatePass(s string) (service string, pass string, err error) {
 	return
 }
 
+// Проверяет строку после команды /del
 func ValidateGet(s string) (service string, err error) {
 	s = strings.TrimSpace(s)
 	tmp := strings.Split(s, " ")

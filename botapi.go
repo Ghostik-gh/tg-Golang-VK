@@ -75,6 +75,7 @@ func StartBot(config Config) {
 			continue
 		}
 
+		// Обрабатываем сообщения пользователя
 		if update.Message != nil {
 			if update.Message.MessageID >= lastMsg {
 				lastMsg = update.Message.MessageID
@@ -105,6 +106,7 @@ func StartBot(config Config) {
 				Infolog.Printf("err: %v\n", err)
 			}
 		} else if update.CallbackQuery != nil {
+			// Обрабатываем нажатия на кнопки под сообщениями
 			lastMsg = Max(update.CallbackQuery.Message.MessageID, lastMsg)
 			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "Пароль удаляется через 10 секунд")
 			if _, err := bot.Request(callback); err != nil {
