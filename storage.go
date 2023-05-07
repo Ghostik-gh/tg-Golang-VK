@@ -21,7 +21,7 @@ var dbInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=
 // Стартует работу базы данных
 func StartDB() {
 	// Задержка пока разворачивается Postgres
-	time.Sleep(5 * time.Second)
+	time.Sleep(30 * time.Second)
 	if os.Getenv("CREATE_TABLE") == "yes" {
 		if os.Getenv("DB_SWITCH") == "on" {
 			if err := createTable(); err != nil {
