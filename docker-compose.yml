@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: test
 
   bot:
-    image: ghostikgh/golang-bot2
+    image: ghostikgh/golang-bot
     environment:
       CREATE_TABLE: 'yes'
       DB_SWITCH: 'on'
