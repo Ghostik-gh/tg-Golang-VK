@@ -54,29 +54,27 @@ DockerHub: https://hub.docker.com/r/ghostikgh/golang-bot - образ бота �
 7. Собрать конфиги в одном месте, скорее всего в docker-compose
 8. Добавить k8s на сервер
 
-
-
 <details>
   <summary style="color:#4186D3;font-size:20px">Examples</summary>
 
 ### /set
 
-![example /set](ex2.png)
+![example /set](assets/ex2.png)
 
 ### /get
 
-![example /get](ex.png)
+![example /get](assets/ex.png)
 
 ### /del
 
-![example /del](ex3.png)
+![example /del](assets/ex3.png)
 
 ### /help
 
-![example /help](ex4.png)
+![example /help](assets/ex4.png)
 
 ### Mobile
 
-![example Mobile](ex5.png)
+![example Mobile](assets/ex5.png)
 
 </details>
