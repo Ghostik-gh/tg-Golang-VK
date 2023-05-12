@@ -1,4 +1,4 @@
-package main
+package botapi
 
 const offset = 1198
 

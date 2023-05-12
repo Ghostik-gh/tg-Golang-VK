@@ -11,7 +11,7 @@ services:
     environment:
       CREATE_TABLE: 'yes'
       DB_SWITCH: 'on'
-      TOKEN: 6123742076:AAEpT_l2zQLGGkxbOojSE9sqRqgrlvGiAbY
+      TOKEN: 6201240293:AAHdMaz4Qu8ShdCfCQSFskqWGe1-bxw1-uU
       HOST: db
       PORT: 5432
       USER: postgres
