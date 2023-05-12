@@ -33,7 +33,11 @@
 
     git clone https://github.com/Ghostik-gh/tg-Golang-VK.git
 
-затем внести свои изменения и собрать свой образ бота, после чего запустить
+затем внести свои изменения и собрать свой образ бота
+
+    docker build -t ghostikgh/golang-bot .
+
+после чего запустить
 
     docker-compose up --build
 
