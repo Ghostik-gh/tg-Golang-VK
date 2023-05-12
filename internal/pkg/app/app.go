@@ -1,19 +1,22 @@
-package main
+package app
 
 import (
-	"encoding/json"
 	"log"
 	"os"
-
-	_ "github.com/lib/pq"
+	"encoding/json"
+	"tg-Golang-VK/internal/botapi"
 )
 
-var Infolog = log.New(os.Stdout, "INFO ", log.Ldate|log.Ltime)
+type Config struct {
+	TelegramBotToken string
+}
 
-func main() {
+func Run() error {
 	configuration := mustConfig()
-	StartDB()
-	StartBot(configuration)
+	botapi.StartDB()
+	bot := botapi.New(configuration.TelegramBotToken)
+	bot.StartBot()
+	return nil
 }
 
 // Считывает конфиг в котором находится токен для бота
@@ -22,6 +25,7 @@ func mustConfig() Config {
 	decoder := json.NewDecoder(file)
 	configuration := Config{}
 	err := decoder.Decode(&configuration)
+	log.Println(configuration.TelegramBotToken)
 	if err != nil {
 		log.Fatal("Can't configurate: create config.json with yours telegram token")
 	}

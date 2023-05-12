@@ -7,11 +7,10 @@ services:
       POSTGRES_PASSWORD: test
 
   bot:
-    image: ghostikgh/golang-bot
+    image: ghostikgh/golang-bot2
     environment:
       CREATE_TABLE: 'yes'
       DB_SWITCH: 'on'
-      # TOKEN: token??
       HOST: db
       PORT: 5432
       USER: postgres

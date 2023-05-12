@@ -1,11 +1,19 @@
-package main
+package botapi
 
 import (
 	"database/sql"
 	"fmt"
 	"os"
 	"time"
+
+	_ "github.com/lib/pq"
 )
+
+// Хранит пару из сервиса и пароля к нему
+type RowServ struct {
+	service  string
+	password string
+}
 
 var (
 	host     = os.Getenv("HOST")
