@@ -52,6 +52,9 @@ DockerHub: https://hub.docker.com/r/ghostikgh/golang-bot - образ бота �
 5. Зарефакторить по папкам
 6. Написать тесты
 7. Собрать конфиги в одном месте, скорее всего в docker-compose
+8. Добавить k8s на сервер
+
+
 
 <details>
   <summary style="color:#4186D3;font-size:20px">Examples</summary>
