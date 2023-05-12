@@ -1,12 +1,16 @@
-package main
+package botapi
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"os"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
+var Infolog = log.New(os.Stdout, "INFO ", log.Ldate|log.Ltime)
 
 const (
 	helpText = `Справочник по командам
@@ -15,11 +19,37 @@ const (
 /del - Удаляет серевис из хранилища
 /author - Если у вас есть вопросы или предложения по работе бота пишите мне
 Бот обрабаывает только команды и пару слов после set, все остальное делается через кнопки под сообщениями`
+	CStart  = "start"
+	CHelp   = "help"
+	CGet    = "get"
+	CAuthor = "author"
+	CSet    = "set"
+	CDel    = "del"
 )
 
-func StartBot(config Config) {
+type tgBot struct {
+	token   string
+	set     bool
+	del     bool
+	get     bool
+	count   int
+	lastMsg int
+}
 
-	bot, err := tgbotapi.NewBotAPI(config.TelegramBotToken)
+func New(token string) *tgBot {
+	return &tgBot{
+		token:   token,
+		set:     false,
+		del:     false,
+		get:     false,
+		count:   0,
+		lastMsg: 0,
+	}
+}
+
+func (b *tgBot) StartBot() {
+	fmt.Printf("b.token: %v\n", b.token)
+	bot, err := tgbotapi.NewBotAPI(b.token)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -29,15 +59,11 @@ func StartBot(config Config) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := bot.GetUpdatesChan(u)
-	set := false
-	del := false
-	get := false
-	count := 0
-	lastMsg := 0
+
 	for update := range updates {
 		// Обработка получения пароля не через аргументы
-		if del && update.Message != nil {
-			del = false
+		if b.del && update.Message != nil {
+			b.del = false
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 			serv, err := ValidateGet(update.Message.Text)
 			if err != nil {
@@ -54,13 +80,13 @@ func StartBot(config Config) {
 			if _, err := bot.Send(msg); err != nil {
 				Infolog.Printf("err: %v\n", err)
 			}
-			count = 3
+			b.count = 3
 			continue
 		}
 
 		// Обработка получения нового сервиса и пароля
-		if set && update.Message != nil {
-			set = false
+		if b.set && update.Message != nil {
+			b.set = false
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 			serv, pass, err := ValidatePass(update.Message.Text)
 			if err != nil {
@@ -78,34 +104,34 @@ func StartBot(config Config) {
 			if _, err := bot.Send(msg); err != nil {
 				Infolog.Printf("err: %v\n", err)
 			}
-			count = 3
+			b.count = 3
 			continue
 		}
 
 		// Обрабатываем сообщения пользователя
 		if update.Message != nil {
-			if update.Message.MessageID >= lastMsg {
-				lastMsg = update.Message.MessageID
-				count = 1
+			if update.Message.MessageID >= b.lastMsg {
+				b.lastMsg = update.Message.MessageID
+				b.count = 1
 			}
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 			switch update.Message.Command() {
-			case "start":
+			case CStart:
 				msg.Text = helpText
-			case "help":
+			case CHelp:
 				msg.Text = helpText
-			case "get":
-				count = 0
-				get = true
+			case CGet:
+				b.count = 0
+				b.get = true
 				msg.ReplyMarkup = Inline(update.Message.Chat.ID, update.Message.From.UserName)
 				msg.Text = "Для того чтобы увидеть пароль кликните на сервис\nПароль удалится через 5 секунд"
-			case "del":
-				del = true
+			case CDel:
+				b.del = true
 				msg.Text = "Введите название сервиса"
-			case "set":
-				set = true
+			case CSet:
+				b.set = true
 				msg.Text = "Напишите сервис и пароль к нему через пробел"
-			case "author":
+			case CAuthor:
 				msg.Text = "https://t.me/GhostikGH"
 			default:
 				msg.Text = "Я не знаю такой команды\n" + helpText
@@ -116,7 +142,7 @@ func StartBot(config Config) {
 			}
 		} else if update.CallbackQuery != nil {
 			// Обрабатываем нажатия на кнопки под сообщениями
-			lastMsg = Max(update.CallbackQuery.Message.MessageID, lastMsg)
+			b.lastMsg = Max(update.CallbackQuery.Message.MessageID, b.lastMsg)
 			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "Пароль удаляется через 5 секунд")
 			if _, err := bot.Request(callback); err != nil {
 				panic(err)
@@ -126,9 +152,9 @@ func StartBot(config Config) {
 			if _, err := bot.Send(msg); err != nil {
 				panic(err)
 			}
-			count++
-			if get {
-				go DeleteMsg(bot, msg.ChatID, lastMsg+count)
+			b.count++
+			if b.get {
+				go DeleteMsg(bot, msg.ChatID, b.lastMsg+b.count)
 			}
 		}
 	}
