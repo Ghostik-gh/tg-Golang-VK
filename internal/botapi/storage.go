@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 // Хранит пару из сервиса и пароля к нему
